@@ -1,0 +1,411 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 2414 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 770 Td
+(SE4030 SECURE SOFTWARE DEVELOPMENT ASSIGNMENT REPORT) Tj
+T*
+T*
+T*
+(Cover Page) Tj
+T*
+T*
+(• **Course:** SE4030 – Secure Software Development) Tj
+T*
+(• **Assignment:** Vulnerability Assessment, Remediation, and OAuth Integration) Tj
+T*
+(• **Application:** Car Booking Web Application) Tj
+T*
+(• **Team Members:** _Add member names and index numbers here_) Tj
+T*
+(• **Submission Date:** _Add date_) Tj
+T*
+T*
+(1. Introduction) Tj
+T*
+(The selected application is a PHP/MySQL-based car booking portal that enables) Tj
+T*
+(customers to browse vehicles, make reservations, and allows administrators to manage) Tj
+T*
+(the fleet. The legacy codebase relied on ad-hoc scripts with minimal security) Tj
+T*
+(controls, resulting in multiple critical vulnerabilities. This project modernised) Tj
+T*
+(the security posture, remediated the highest-risk flaws, and introduced Google) Tj
+T*
+(OpenID Connect login to strengthen authentication.) Tj
+T*
+T*
+T*
+(2. Assessment Methodology) Tj
+T*
+(The team adopted a repeatable process that combined manual inspection with automated) Tj
+T*
+(assistance:) Tj
+T*
+T*
+T*
+(1. **Source code review:** Analysed PHP, HTML, and SQL files to identify insecure) Tj
+T*
+(patterns such as unsanitised input, outdated cryptography, and missing authorisation) Tj
+T*
+(checks.) Tj
+T*
+(2. **Dependency and configuration audit:** Reviewed configuration files and database) Tj
+T*
+(schema to uncover hard-coded secrets and weak defaults.) Tj
+T*
+(3. **Manual functional testing:** Exercised login, registration, booking, and) Tj
+T*
+(administrative workflows in a local environment to validate exploitability and) Tj
+T*
+(confirm fixes.) Tj
+T*
+(4. **Automated linting:** Executed `php -l` against modified files to ensure syntax) Tj
+T*
+(correctness and reduce regression risk.) Tj
+T*
+(5. **Threat modelling:** Mapped attack surfaces \(public forms, file uploads,) Tj
+T*
+(administrative actions, OAuth callbacks\) to prioritise remediation effort.) Tj
+T*
+T*
+(3. Vulnerability Summary) Tj
+T*
+(# | Vulnerability | Location | Risk | Status) Tj
+T*
+T*
+(--- | --------------- | ---------- | ------ | --------) Tj
+T*
+T*
+(1 | Hard-coded root database credentials and lack of connection error handling |) Tj
+T*
+(`inc/connection.inc.php`, `admin/includes/connection.inc.php` | High | Fixed) Tj
+T*
+(2 | Session cookies missing secure attributes, enabling session hijacking | Global) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 3142 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 770 Td
+(session bootstrap | Medium | Fixed) Tj
+T*
+(3 | SQL injection in customer login flow | `login.php` | Critical | Fixed) Tj
+T*
+(4 | Weak MD5 password hashing and plaintext comparison | `login.php`, `register.php`) Tj
+T*
+(| High | Fixed) Tj
+T*
+(5 | Stored cross-site scripting via booking messages and vehicle metadata |) Tj
+T*
+(`carDetails.php`, `admin/manage-bookings.php`, `my_account.php` | High | Fixed) Tj
+T*
+(6 | Cross-site request forgery on booking, registration, and admin actions |) Tj
+T*
+(Multiple forms \(`register.php`, `login.php`, `carDetails.php`, admin modules\) | High) Tj
+T*
+(| Fixed) Tj
+T*
+(7 | Arbitrary file upload leading to potential remote code execution |) Tj
+T*
+(`admin/post-avehical.php` | Critical | Fixed) Tj
+T*
+T*
+(4. Detailed Findings and Fixes) Tj
+T*
+T*
+(4.1 Hard-coded database credentials and missing error handling) Tj
+T*
+(• **Original issue:** The legacy connection scripts embedded the `root` MySQL user) Tj
+T*
+(with a blank password and did not check for connection failures. Any compromise of) Tj
+T*
+(the repository or webroot exposed production credentials. Additionally, the) Tj
+T*
+(application silently proceeded when the database connection failed, leading to) Tj
+T*
+(unpredictable behaviour.) Tj
+T*
+(• **Impact:** Attackers could reuse the leaked root credentials to access the) Tj
+T*
+(production database remotely. Local attackers could modify the file to pivot into) Tj
+T*
+(the database or suppress error messages to mask malicious activity.) Tj
+T*
+(• **Fix:** Replaced direct credentials with an environment/configuration bootstrap) Tj
+T*
+(\(`inc/config.php` or environment variables\), enforced strict MySQLi error reporting,) Tj
+T*
+(and failed closed with a 500 response on connection errors.) Tj
+T*
+T*
+(4.2 Insecure session cookies) Tj
+T*
+(• **Original issue:** Sessions were started with default PHP settings, which omit) Tj
+T*
+(the `Secure`, `HttpOnly`, and `SameSite` flags. On HTTPS deployments, cookies could) Tj
+T*
+(be transmitted over HTTP or accessed via JavaScript.) Tj
+T*
+(• **Impact:** Session identifiers were exposed to network attackers or could be) Tj
+T*
+(stolen through XSS, allowing account takeover.) Tj
+T*
+(• **Fix:** Added a central `security.inc.php` bootstrap that sets secure session) Tj
+T*
+(cookie parameters before `session_start\(\)`, ensuring cookies are HTTPS-only \(when) Tj
+T*
+(applicable\), `HttpOnly`, and use `SameSite=Lax` to resist CSRF.) Tj
+T*
+T*
+(4.3 SQL injection in login workflow) Tj
+T*
+(• **Original issue:** The login handler interpolated raw `$_POST` values into SQL) Tj
+T*
+(queries without sanitisation or parameterisation: `SELECT * FROM users WHERE) Tj
+T*
+(email='$username' AND password='$password'`. Attackers could authenticate without) Tj
+T*
+(valid credentials by injecting SQL payloads.) Tj
+T*
+(• **Impact:** Complete bypass of authentication and exposure of all user data.) Tj
+T*
+(• **Fix:** Rebuilt the login logic using prepared statements, strict input) Tj
+T*
+(validation, and limited column selection. The query now binds parameters and) Tj
+T*
+(verifies hashed passwords server-side.) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 2892 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 770 Td
+T*
+(4.4 Weak password hashing) Tj
+T*
+(• **Original issue:** User passwords were hashed with `md5\(\)` during registration) Tj
+T*
+(and compared with MD5 digests on login. MD5 is collision-prone and GPU-crackable) Tj
+T*
+(within seconds.) Tj
+T*
+(• **Impact:** A database leak would immediately expose all user passwords, enabling) Tj
+T*
+(credential stuffing.) Tj
+T*
+(• **Fix:** Migrated to PHP's `password_hash\(\)`/`password_verify\(\)` APIs with the) Tj
+T*
+(default bcrypt algorithm, regenerated password hashes for default accounts, and) Tj
+T*
+(updated the schema to accommodate stronger hashes.) Tj
+T*
+T*
+(4.5 Stored cross-site scripting \(XSS\)) Tj
+T*
+(• **Original issue:** User-supplied values such as booking messages, vehicle titles,) Tj
+T*
+(and other metadata were stored unfiltered and echoed directly into HTML contexts) Tj
+T*
+(throughout the site \(customer dashboards and admin panels\).) Tj
+T*
+(• **Impact:** Authenticated attackers could inject JavaScript that executes in other) Tj
+T*
+(users' browsers, leading to session theft or administrative compromise.) Tj
+T*
+(• **Fix:** Introduced sanitisation helpers for inbound data, escaped all dynamic) Tj
+T*
+(output with `htmlspecialchars\(\)`, and audited templates to ensure untrusted values) Tj
+T*
+(are never rendered raw.) Tj
+T*
+T*
+(4.6 Cross-site request forgery \(CSRF\)) Tj
+T*
+(• **Original issue:** High-impact state-changing forms \(login, registration,) Tj
+T*
+(bookings, admin approvals, vehicle uploads\) lacked CSRF tokens. Browsers would) Tj
+T*
+(happily submit forged requests triggered from malicious sites.) Tj
+T*
+(• **Impact:** Attackers could trick authenticated users into confirming bookings,) Tj
+T*
+(adding vehicles, or changing account data without consent.) Tj
+T*
+(• **Fix:** Implemented reusable CSRF helpers \(`generate_csrf_token`,) Tj
+T*
+(`require_valid_csrf_token`\) and embedded hidden tokens in every sensitive form.) Tj
+T*
+(Server-side handlers now reject requests with missing or invalid tokens.) Tj
+T*
+T*
+(4.7 Arbitrary file upload) Tj
+T*
+(• **Original issue:** The admin vehicle upload feature accepted any file name and) Tj
+T*
+(extension, storing it directly under the public `img/vehicleimages/` directory) Tj
+T*
+(without validation or randomisation.) Tj
+T*
+(• **Impact:** An attacker with admin access could upload a PHP web shell and achieve) Tj
+T*
+(remote code execution. Even non-admin attackers could exploit stolen admin sessions) Tj
+T*
+(\(see CSRF issue\) to plant malware.) Tj
+T*
+(• **Fix:** Restricted uploads to approved MIME types, generated randomised) Tj
+T*
+(filenames, stored metadata safely, and verified move operations before persisting) Tj
+T*
+(references.) Tj
+T*
+T*
+(5. OAuth / OpenID Connect Integration) Tj
+T*
+(A new Google OpenID Connect login flow was added to support social sign-on. The) Tj
+T*
+(implementation:) Tj
+T*
+ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 2554 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 770 Td
+(• Registers the application with Google Cloud and stores the client credentials) Tj
+T*
+(securely in `inc/config.php` or environment variables.) Tj
+T*
+(• Uses an explicit login endpoint \(`oauth/google_login.php`\) that builds the Google) Tj
+T*
+(authorisation URL with cryptographically strong `state` and `nonce` parameters.) Tj
+T*
+(• Handles the callback \(`oauth/google_callback.php`\) by validating the `state`,) Tj
+T*
+(exchanging the authorisation code for tokens via cURL, verifying the ID token) Tj
+T*
+(signature and claims, and provisioning or linking local accounts.) Tj
+T*
+(• Integrates with the existing session management and CSRF framework to ensure a) Tj
+T*
+(consistent security posture.) Tj
+T*
+T*
+(6. Residual Risks and Deferred Items) Tj
+T*
+(• **Transport security:** Enforcing HTTPS and HSTS requires web server configuration) Tj
+T*
+(that is outside the application repository. Deployment guides should mandate TLS.) Tj
+T*
+(• **Rate limiting:** Brute-force protection for login and OAuth callbacks was not) Tj
+T*
+(implemented due to time constraints. Future iterations should add IP-based) Tj
+T*
+(throttling or CAPTCHA challenges.) Tj
+T*
+(• **Comprehensive logging:** The remediation focused on security-critical) Tj
+T*
+(functionality; centralised auditing and monitoring were not added but remain a) Tj
+T*
+(recommended control.) Tj
+T*
+T*
+(7. Best Practice Recommendations) Tj
+T*
+(• Incorporate secure code review and threat modelling into every release cycle.) Tj
+T*
+(• Store secrets outside source control \(environment variables or secret managers\)) Tj
+T*
+(and rotate them regularly.) Tj
+T*
+(• Enforce automated static analysis \(e.g., PHPStan, Psalm\) and dependency scanning) Tj
+T*
+(in CI pipelines.) Tj
+T*
+(• Adopt a defence-in-depth mindset: layered controls \(input validation, output) Tj
+T*
+(encoding, authorisation, logging\) help contain the impact of any single flaw.) Tj
+T*
+(• Keep third-party SDKs and libraries updated, and monitor for advisories affecting) Tj
+T*
+(OAuth integrations.) Tj
+T*
+T*
+(8. Testing Evidence) Tj
+T*
+(• PHP syntax checks were executed for all modified PHP files using `php -l`.) Tj
+T*
+(• Manual regression testing confirmed that login, registration, booking, admin) Tj
+T*
+(workflows, and Google OAuth login operate as expected with the new security) Tj
+T*
+(controls.) Tj
+T*
+T*
+(9. References) Tj
+T*
+(• OWASP Top Ten 2021) Tj
+T*
+(• Google Identity Platform documentation) Tj
+T*
+(• PHP Manual: Sessions and Password Hashing API) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000134 00000 n 
+0000000204 00000 n 
+0000000330 00000 n 
+0000002796 00000 n 
+0000002922 00000 n 
+0000006116 00000 n 
+0000006242 00000 n 
+0000009186 00000 n 
+0000009314 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+11921
+%%EOF

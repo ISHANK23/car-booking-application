@@ -1,75 +1,69 @@
 <?php
-   require('inc/header.inc.php');
-   require('inc/connection.inc.php');
+require 'inc/header.inc.php';
 
-   if(!isset($_SESSION['username'])){
-    echo '<script>swal({
-        title: "Please login to the account!",
-        text: "Redirecting in 2 seconds.",
-        type: "error",
-        timer: 2000,
-        showConfirmButton: false
-      }, function(){
-            window.location.href = "login.php";
-      });</script>';
-   }
+if (empty($_SESSION['username'])) {
+    header('Location: login.php');
+    exit;
+}
+
+$userEmail = $_SESSION['username'];
+
+$statement = $con->prepare('SELECT cars.VehiclesTitle, cars.Vimage1, carbooking.VehicleId, carbooking.FromDate, carbooking.ToDate, carbooking.Status FROM cars JOIN carbooking ON cars.id = carbooking.VehicleId WHERE carbooking.userEmail = ? ORDER BY carbooking.FromDate DESC');
+$statement->bind_param('s', $userEmail);
+$statement->execute();
+$result = $statement->get_result();
 ?>
 
 <section class="my-account">
-
     <div class="container">
-    <h2>My Bookings</h2>
-    <div class="row">
-  <div class="col-2">
-  <div class="list-group">
-  <a href="my_account.php" class="list-group-item list-group-item-action active">My Bookings</a>
-  <a href="logout.php" class="list-group-item list-group-item-action">Logout</a>
-</div>
-  </div>
-  <div class="col-10">
-  <table class="table">
-  <thead>
-    <tr>
-      <th scope="col">Car</th>
-      <th scope="col">Image</th>
-      <th scope="col">From Date</th>
-      <th scope="col">To Date</th>
-      <th scope="col">Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    <?php
-    $userEmail=$_SESSION['username'];
-      $sql="SELECT  cars.VehiclesTitle,cars.Vimage1,carbooking.VehicleId,carbooking.FromDate,carbooking.ToDate,carbooking.Status FROM cars,carbooking WHERE cars.id=carbooking.VehicleId AND userEmail='$userEmail'";
-      $res=mysqli_query($con,$sql);
-
-      while($row=mysqli_fetch_assoc($res)){
-    ?>
-    <tr>
-      <td><?php echo $row['VehiclesTitle']?></td>
-      <td><img class="card-img-top" src="admin/img/vehicleimages/<?php echo $row['Vimage1'];?>" alt="" srcset=""></td>
-      <td><?php echo $row['FromDate']?></td>
-      <td><?php echo $row['ToDate']?></td>
-      <td><?php 
-      if($row['Status']==0){
-        echo "<p class='text-danger'>Pending</p>";
-      }else{
-        echo "<p class='text-success'>Confirm</p>";
-      }?>
-      </td>
-    </tr>
-    <?php }?>
-  </tbody>
-</table>
-  </div>
-</div>
-    
+        <h2>My Bookings</h2>
+        <div class="row">
+            <div class="col-2">
+                <div class="list-group">
+                    <a href="my_account.php" class="list-group-item list-group-item-action active">My Bookings</a>
+                    <a href="logout.php" class="list-group-item list-group-item-action">Logout</a>
+                </div>
+            </div>
+            <div class="col-10">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Car</th>
+                        <th scope="col">Image</th>
+                        <th scope="col">From Date</th>
+                        <th scope="col">To Date</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?php echo e($row['VehiclesTitle']); ?></td>
+                            <td>
+                                <?php if (!empty($row['Vimage1'])): ?>
+                                    <img class="card-img-top" src="<?php echo 'admin/img/vehicleimages/' . e($row['Vimage1']); ?>" alt="Vehicle image">
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo e($row['FromDate']); ?></td>
+                            <td><?php echo e($row['ToDate']); ?></td>
+                            <td>
+                                <?php if ((int)$row['Status'] === 0): ?>
+                                    <span class="text-danger">Pending</span>
+                                <?php elseif ((int)$row['Status'] === 1): ?>
+                                    <span class="text-success">Confirmed</span>
+                                <?php else: ?>
+                                    <span class="text-secondary">Cancelled</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </section>
 
-
-
-
 <?php
-   require('inc/footer.inc.php');
-?>
+$statement->close();
+require 'inc/footer.inc.php';
