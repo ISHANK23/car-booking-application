@@ -1,11 +1,4 @@
-<?php 
-session_start();
-// DB credentials.
-$con=mysqli_connect("localhost","root","","rentcar");
-// Establish database connection.
-if($con){
-    
-}else{
-    
-}
-?>
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../inc/connection.inc.php';
